@@ -29,7 +29,7 @@ extra["springCloudVersion"] = "2025.0.0"
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
-	implementation("org.springframework.boot:spring-boot-starter-web")
+	implementation("org.springframework.boot:spring-boot-starter-webflux")
 	implementation("org.springframework.ai:spring-ai-starter-model-chat-memory")
 	implementation("org.springframework.ai:spring-ai-starter-model-openai")
 	implementation("org.springframework.cloud:spring-cloud-starter-circuitbreaker-resilience4j")
