@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>AI Chat</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+
+        body {
+            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+            font-size: 16px;
+            line-height: 1.6;
+            background-color: #f9f9f9;
+            color: #222;
+            padding: 20px;
+            max-width: 800px;
+            margin: auto;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        h2 {
+            text-align: center;
+            font-size: 26px;
+            margin-bottom: 20px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        form {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            font-size: 14px;
+            margin: 14px 0 6px;
+            color: #444;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 15px;
+            font-family: inherit;
+            box-sizing: border-box;
+            background-color: #fdfdfd;
+        }
+
+        textarea:focus, input:focus {
+            border-color: #4CAF50;
+            outline: none;
+        }
+
+        input[type="submit"], button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            font-size: 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 14px;
+            margin-right: 10px;
+            font-weight: 500;
+        }
+
+        button[name="reset"] {
+            background-color: #f44336;
+        }
+
+        .chat-wrapper {
+            flex: 1;
+            overflow-y: auto;
+            background: #ffffff;
+            border-radius: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            padding: 20px;
+            display: flex;
+            flex-direction: column; /* 👈 Most recent message on top */
+        }
+
+        .chat-box {
+            padding: 14px 18px;
+            border-radius: 14px;
+            max-width: 80%;
+            word-wrap: break-word;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            font-size: 15px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            margin-bottom: 12px;
+        }
+
+        .system {
+            background-color: #eeeeee;
+            align-self: center;
+            color: #444;
+        }
+
+        .user {
+            background-color: #cceeff;
+            align-self: flex-end;
+            text-align: right;
+        }
+
+        .assistant {
+            background-color: #dcfddc;
+            align-self: flex-start;
+            text-align: left;
+        }
+
+        .role-label {
+            font-weight: 600;
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 6px;
+        }
+
+        @media screen and (max-width: 600px) {
+            .chat-box {
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+<h2>Chat with AI</h2>
+
+<!-- 🧠 Chat Form at the Top -->
+<form method="post" th:action="@{/chat}" enctype="application/x-www-form-urlencoded">
+    <label>System Message:</label>
+    <textarea name="systemMessage" rows="3" th:text="${initialSystemMessage}"></textarea>
+
+    <input type="hidden" name="conversationId" th:value="${conversationId}" />
+
+    <label>Your Message:</label>
+    <textarea name="userMessage" rows="3" required></textarea>
+
+    <input type="submit" value="Send" />
+    <button type="submit" name="reset" value="true">Reset</button>
+</form>
+
+<!-- 💬 Scrollable, Reversed Chat History -->
+<div class="chat-wrapper" id="chatHistory">
+    <div th:each="msg : ${chatView}">
+        <div th:class="'chat-box ' + ${msg.role.toLowerCase()}">
+            <div class="role-label" th:text="${msg.role + ':'}"></div>
+            <div th:text="${msg.content}"></div>
+        </div>
+    </div>
+</div>
+
+<!-- 🧠 Optional Auto-scroll Script -->
+<script>
+    // Optional: scroll to top (newest message)
+    const chatBox = document.getElementById('chatHistory');
+    chatBox.scrollTop = 0;
+</script>
+</body>
+</html>
