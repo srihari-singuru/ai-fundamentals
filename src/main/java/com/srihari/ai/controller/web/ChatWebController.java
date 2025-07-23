@@ -1,7 +1,7 @@
-package com.srihari.ai.controller;
+package com.srihari.ai.controller.web;
 
-import com.srihari.ai.model.ConversationModel;
-import com.srihari.ai.service.ChatFlowService;
+import com.srihari.ai.model.view.ConversationModel;
+import com.srihari.ai.service.chat.WebChatService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Controller;
@@ -15,21 +15,21 @@ import reactor.core.publisher.Mono;
 @Slf4j
 @Controller
 @RequiredArgsConstructor
-public class ChatController {
+public class ChatWebController {
 
-    private final ChatFlowService chatFlowService;
+    private final WebChatService webChatService;
 
     @GetMapping("/chat")
     public Mono<String> getChat(Model model, ServerWebExchange exchange) {
-        return chatFlowService.loadChat(model, exchange)
-                .onErrorResume(e -> chatFlowService.fallback(model, "GET /chat", e));
+        return webChatService.loadChat(model, exchange)
+                .onErrorResume(e -> webChatService.fallback(model, "GET /chat", e));
     }
 
     @PostMapping("/chat")
     public Mono<String> postChat(@ModelAttribute ConversationModel input,
-                                 Model model,
-                                 ServerWebExchange exchange) {
-        return chatFlowService.processUserMessage(input, model, exchange)
-                .onErrorResume(e -> chatFlowService.fallback(model, "POST /chat", e));
+            Model model,
+            ServerWebExchange exchange) {
+        return webChatService.processUserMessage(input, model, exchange)
+                .onErrorResume(e -> webChatService.fallback(model, "POST /chat", e));
     }
 }

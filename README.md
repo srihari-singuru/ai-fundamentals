@@ -1,37 +1,41 @@
-# 💬 AI Chatbot with Spring WebFlux
+# 🤖 AI Fundamentals - Spring Boot AI Chat Application
 
-This project implements an AI-powered conversational chatbot using **Spring WebFlux**, **Spring AI**, **Thymeleaf**, and **Resilience4j**. It supports both a Web UI and a REST API, and adheres to clean architecture principles with full reactive programming support.
-
----
-
-## ✨ Features
-
-* Real-time token streaming with Project Reactor
-* Stateful chat memory across sessions
-* Dynamic system prompt customization
-* Retry, fallback, and circuit breaker using Resilience4j
-* Full separation of concerns: Controller, Service, Client, View Mapper
-* Clean, testable, and modular design following SOLID principles
+A production-ready AI-powered chat application built with **Spring Boot 3**, **Spring AI**, **Spring WebFlux**, and **OpenAI GPT-4**. Features both a reactive web UI and REST API with comprehensive resilience patterns, conversation memory, and clean architecture.
 
 ---
 
-## 💠 Tech Stack
+## ✨ Key Features
 
-| Component      | Technology                            |
-| -------------- | ------------------------------------- |
-| Web Framework  | Spring WebFlux                        |
-| AI Integration | Spring AI (OpenAI)                    |
-| UI Layer       | Thymeleaf                             |
-| REST API       | Token streaming via `Flux<String>`    |
-| Resilience     | Resilience4j (Retry + CircuitBreaker) |
-| Reactive Core  | Reactor: Mono / Flux                  |
-| View Layer     | ChatMessageView DTO Mapping           |
+* **Dual Interface**: Web UI and REST API endpoints
+* **Reactive Streaming**: Real-time token streaming with Spring WebFlux
+* **Conversation Memory**: Persistent chat history across user sessions
+* **Resilience Patterns**: Circuit breakers, retries, and fallback mechanisms
+* **Clean Architecture**: Domain-driven package structure with clear separation of concerns
+* **Production Ready**: Comprehensive error handling, logging, and monitoring
 
 ---
 
-## 🚀 Getting Started
+## 🏗️ Architecture & Tech Stack
 
-### 1. Clone the Project
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| **Web Framework** | Spring Boot 3 + WebFlux | Reactive web application foundation |
+| **AI Integration** | Spring AI + OpenAI GPT-4.1-nano | AI chat completions with streaming |
+| **UI Layer** | Thymeleaf | Server-side rendered chat interface |
+| **API Layer** | REST with reactive streams | Programmatic access via `Flux<String>` |
+| **Resilience** | Resilience4j | Circuit breakers, retries, timeouts |
+| **Memory** | Spring AI Chat Memory | Conversation persistence per session |
+| **Build System** | Gradle 8.13 | Dependency management and build automation |
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- **Java 17+** (OpenJDK recommended)
+- **OpenAI API Key** ([Get one here](https://platform.openai.com/api-keys))
+
+### 1. Clone & Setup
 
 ```bash
 git clone https://github.com/srihari-singuru/ai-fundamentals.git
@@ -40,157 +44,268 @@ cd ai-fundamentals
 
 ### 2. Configure OpenAI API Key
 
-#### Option 1: via environment variable
-
+**Environment Variable (Recommended):**
 ```bash
-export OPENAI_API_KEY=sk-xxxxxxxxxxxxxxxxxxxxxxxx
+export OPEN_AI_API_KEY=sk-your-openai-api-key-here
 ```
 
-#### Option 2: in `application.yml`
-
+**Or update `application.yml`:**
 ```yaml
 spring:
   ai:
     openai:
-      api-key: ${OPENAI_API_KEY}
+      api-key: sk-your-openai-api-key-here
 ```
 
-### 3. Run the Application
+### 3. Build & Run
 
 ```bash
-./mvnw spring-boot:run
+# Build the application
+./gradlew build
+
+# Run the application
+./gradlew bootRun
 ```
+
+The application will start on `http://localhost:8080`
 
 ---
 
-## 🌐 How to Use
+## 🌐 Usage
 
-Access your chatbot at:
+### Web Interface
+Access the chat UI at: **http://localhost:8080/chat**
 
-```
-http://localhost:8080/chat
-```
+- **Interactive Chat**: Type messages and receive AI responses
+- **System Prompts**: Customize AI behavior with system messages
+- **Conversation Memory**: Chat history persists across page refreshes
+- **Reset Option**: Clear conversation history anytime
 
-* Enter your message and press **Enter** or click **Send**
-* Conversation persists per user session
-* Update the system prompt at any time
-* Click **Reset Conversation** to clear memory
-
-Alternatively, for REST API:
+### REST API
+Programmatic access for integrations:
 
 ```bash
-curl http://localhost:8080/v1/chat-completion?userMessage=Hello
+# Send a chat message
+curl -X POST http://localhost:8080/v1/chat-completion \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Hello, how are you?"}'
 ```
 
-Response is streamed token-by-token.
+Response streams back as `Flux<String>` tokens in real-time.
 
 ---
 
-## 📦 API Endpoints
+## � API Reference
 
-### Web UI (Chat)
+### Entry Points
 
-* `GET /chat` — loads chat page with history and form
-* `POST /chat` — submits message and receives assistant response
+| Endpoint | Method | Purpose | Controller |
+|----------|--------|---------|------------|
+| `/chat` | GET | Load chat interface | `ChatWebController` |
+| `/chat` | POST | Submit chat message (Web UI) | `ChatWebController` |
+| `/v1/chat-completion` | POST | Chat completion API | `ChatApiController` |
 
-### REST API (Streaming)
+### REST API Details
 
-* `GET /v1/chat-completion?userMessage=...`
+#### POST `/v1/chat-completion`
+**Request:**
+```json
+{
+  "message": "Your message here",
+  "model": "gpt-4.1-nano",
+  "temperature": 0.0
+}
+```
 
-    * Returns `Flux<String>` of streamed tokens
-    * Accepts `text/event-stream` -- I commented this, because thymeleaf doesn't support SSE (Server sent events)
+**Response:** 
+- Content-Type: `text/plain`
+- Body: Streaming response as `Flux<String>`
+- Each token arrives as it's generated by the AI
+
+#### Web UI Endpoints
+- **GET `/chat`**: Returns the chat page with conversation history
+- **POST `/chat`**: Processes form submission with `ConversationModel`
+  - Fields: `systemMessage`, `userMessage`, `reset`
 
 ---
 
-## ♻️ Resilience Strategy
+## 🛡️ Resilience & Reliability
 
-Implemented using **Resilience4j** with the following:
-
-* **Retry**
-
-    * On timeouts, IO errors, and rate-limiting
-    * Backoff with jitter
-
-* **Circuit Breaker**
-
-    * Prevents flooding backend on repeated failure
+### Circuit Breaker Pattern
+Protects against cascading failures with **Resilience4j**:
 
 ```yaml
 resilience4j:
   circuitbreaker:
     instances:
+      openai:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
       chatCompletionCB:
         slidingWindowSize: 10
-        failureRateThreshold: 50
-        waitDurationInOpenState: 5s
-        permittedNumberOfCallsInHalfOpenState: 3
         minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
 ```
+
+### Retry Strategy
+- **Exponential Backoff**: 3 retries with 2-second base delay
+- **Jitter**: 40% randomization to prevent thundering herd
+- **Selective Retry**: Only on `IOException` and rate limiting (429)
+
+### Fallback Mechanisms
+- **API Fallback**: "AI temporarily unavailable" message
+- **Web UI Fallback**: Graceful error page with retry options
+- **Comprehensive Logging**: All failures logged with context
 
 ---
 
-## 🧠 Architecture Overview
+## 🏛️ Project Structure
+
+### Clean Architecture Implementation
 
 ```
-src/main/java/com/srihari/ai
-├── api                  # REST API for chat completions
-├── controller           # Web UI controller
-├── service              # ChatService (business logic)
-├── client               # ChatClientFactory
-├── model               
-│   ├── ConversationModel  # Form model for POST /chat
-│   └── ChatMessageView    # DTO for rendering in UI
-└── util                 # Helper methods (safe(), retry filters)
+src/main/java/com/srihari/ai/
+├── AiFundamentalsApplication.java          # Spring Boot main class
+├── configuration/
+│   └── ChatMemoryConfig.java              # Chat memory configuration
+├── controller/
+│   ├── api/
+│   │   └── ChatApiController.java          # REST API endpoints
+│   └── web/
+│       └── ChatWebController.java          # Web UI endpoints
+├── model/
+│   ├── dto/
+│   │   └── ChatCompletionRequest.java      # API request DTO
+│   └── view/
+│       ├── ChatMessageView.java            # Chat display model
+│       └── ConversationModel.java          # Web form model
+├── service/
+│   ├── chat/
+│   │   ├── ApiChatService.java             # API business logic
+│   │   └── WebChatService.java             # Web UI business logic
+│   ├── integration/
+│   │   └── OpenAiChatClient.java           # OpenAI API client
+│   ├── MemoryService.java                  # Conversation persistence
+│   ├── PromptService.java                  # AI prompt handling
+│   └── ViewMappingService.java             # View model mapping
+└── util/
+    └── SafeEvaluator.java                  # Safe evaluation utilities
 ```
 
-* Controller → Service → ChatClient
-* Model to ViewMapper ensures clean DTO separation
-* All error handling via `onErrorResume`
+### Design Principles
+
+- **Domain-Driven Design**: Packages organized by business domain
+- **Separation of Concerns**: Clear boundaries between layers
+- **Dependency Injection**: All components properly wired via Spring
+- **Reactive Programming**: Non-blocking I/O throughout the stack
+- **Single Responsibility**: Each class has one clear purpose
 
 ---
 
-## 🧺 Clean Code Practices
+## 🔧 Configuration
 
-* ✅ SOLID principles enforced
-* ✅ No controller contains business logic
-* ✅ `safe(Supplier, fallback)` guards risky UI calls
-* ✅ All exceptions logged centrally
-* ✅ Retry and fallback applied selectively
-* ✅ Circuit breaker for external AI service
+### Application Properties
+Key configuration in `application.yml`:
+
+```yaml
+spring:
+  application:
+    name: ai-fundamentals
+  ai:
+    openai:
+      api-key: ${OPEN_AI_API_KEY}
+      chat:
+        options:
+          model: gpt-4.1-nano
+          temperature: 0.0
+
+management:
+  health:
+    circuitbreakers:
+      enabled: true
+```
+
+### Environment Variables
+- `OPEN_AI_API_KEY`: Your OpenAI API key (required)
 
 ---
 
-## 💡 Sample Flow
+## 🧪 Development
 
-### Web UI
-
-```
-User: Tell me a joke
-AI: Why don't skeletons fight each other? They don't have the guts.
-```
-
-### REST API
-
+### Running Tests
 ```bash
-curl http://localhost:8080/v1/chat-completion?userMessage=Hi
+./gradlew test
 ```
 
-Streamed response:
-
+### Development Mode
+```bash
+./gradlew bootRun --args='--spring.profiles.active=dev'
 ```
-Hello!
-How can I assist you today?
+
+### Building for Production
+```bash
+./gradlew build
+java -jar build/libs/ai-fundamentals-0.0.1-SNAPSHOT.jar
 ```
 
 ---
 
-## 🔐 Error Handling & Logging
+## 📊 Monitoring & Health
 
-* Handled exceptions:
+### Health Checks
+- **Application Health**: `GET /actuator/health`
+- **Circuit Breaker Status**: Included in health endpoint
+- **Custom Health Indicators**: Circuit breaker states
 
-    * Timeouts
-    * IOException
-    * Rate-limiting (HTTP 429)
-    * Server errors (HTTP 5xx)
-* Unhandled fallback for client-visible messages
-* All exceptions logged via `Slf4j`
+### Logging
+- **Structured Logging**: JSON format for production
+- **Request Tracing**: Full request/response logging
+- **Error Context**: Comprehensive error information
+
+---
+
+## 🚀 Production Deployment
+
+### Docker Support
+```dockerfile
+FROM openjdk:17-jdk-slim
+COPY build/libs/ai-fundamentals-0.0.1-SNAPSHOT.jar app.jar
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "/app.jar"]
+```
+
+### Environment Setup
+```bash
+# Production environment variables
+export OPEN_AI_API_KEY=your-production-key
+export SPRING_PROFILES_ACTIVE=prod
+export SERVER_PORT=8080
+```
+
+---
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Push to branch: `git push origin feature/amazing-feature`
+5. Open a Pull Request
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- **Spring AI Team** for the excellent AI integration framework
+- **OpenAI** for providing powerful language models
+- **Spring Boot Team** for the reactive web framework
+- **Resilience4j** for robust resilience patterns

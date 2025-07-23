@@ -1,6 +1,7 @@
 package com.srihari.ai.service;
 
-import com.srihari.ai.model.ChatMessageView;
+import com.srihari.ai.common.Constants;
+import com.srihari.ai.model.view.ChatMessageView;
 import com.srihari.ai.util.SafeEvaluator;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
@@ -25,10 +26,10 @@ public class ViewMappingService {
                 .filter(m -> m instanceof SystemMessage)
                 .map(m -> ((SystemMessage) m).getText())
                 .findFirst()
-                .orElse("You are a helpful assistant.");
+                .orElse(Constants.DEFAULT_SYSTEM_MESSAGE);
 
-        model.addAttribute("chatView", views);
-        model.addAttribute("initialSystemMessage", initialSystemMessage);
-        return "chat";
+        model.addAttribute(Constants.CHAT_VIEW_ATTR, views);
+        model.addAttribute(Constants.INITIAL_SYSTEM_MESSAGE_ATTR, initialSystemMessage);
+        return Constants.CHAT_VIEW;
     }
 }

@@ -1,4 +1,4 @@
-package com.srihari.ai.model;
+package com.srihari.ai.model.view;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -10,4 +10,3 @@ public class ConversationModel {
     private String userMessage;
     private boolean reset;
 }
-

@@ -1,4 +1,4 @@
-package com.srihari.ai.model;
+package com.srihari.ai.model.view;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
