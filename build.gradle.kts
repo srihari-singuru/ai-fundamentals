@@ -30,12 +30,18 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-actuator")
 	implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
 	implementation("org.springframework.boot:spring-boot-starter-webflux")
+	implementation("org.springframework.boot:spring-boot-starter-validation")
+	implementation("org.springframework.boot:spring-boot-starter-security")
 	implementation("org.springframework.ai:spring-ai-starter-model-chat-memory")
 	implementation("org.springframework.ai:spring-ai-starter-model-openai")
 	implementation("org.springframework.cloud:spring-cloud-starter-circuitbreaker-resilience4j")
+	implementation("io.micrometer:micrometer-registry-prometheus")
 	compileOnly("org.projectlombok:lombok")
 	annotationProcessor("org.projectlombok:lombok")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
+	testImplementation("org.springframework.security:spring-security-test")
+	testImplementation("io.projectreactor:reactor-test")
+	testImplementation("org.springframework.boot:spring-boot-testcontainers")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
@@ -48,4 +54,42 @@ dependencyManagement {
 
 tasks.withType<Test> {
 	useJUnitPlatform()
+	
+	// Enable parallel test execution
+	systemProperty("junit.jupiter.execution.parallel.enabled", "true")
+	systemProperty("junit.jupiter.execution.parallel.mode.default", "concurrent")
+	systemProperty("junit.jupiter.execution.parallel.mode.classes.default", "concurrent")
+	
+	// Configure parallel execution
+	maxParallelForks = Runtime.getRuntime().availableProcessors()
+	
+	// JVM options for better parallel performance
+	jvmArgs("-XX:+UseParallelGC", "-XX:ParallelGCThreads=4", "-Xmx1g")
+	
+	// Test execution settings
+	testLogging {
+		events("passed", "skipped", "failed")
+		showStandardStreams = false
+		showExceptions = true
+		showCauses = true
+		showStackTraces = true
+	}
+}
+
+// JVM options for better build performance
+tasks.withType<JavaCompile> {
+	options.isFork = true
+	options.forkOptions.jvmArgs?.addAll(listOf(
+		"-Xmx512m",  // Optimized memory for development builds
+		"-XX:+UseParallelGC",
+		"-XX:MaxMetaspaceSize=256m",  // Limit metaspace to prevent memory leaks
+		"-XX:+UseStringDeduplication"  // Reduce memory usage
+	))
+}
+
+// Simple development task
+tasks.register("dev") {
+	group = "development"
+	description = "Build and run the application"
+	dependsOn("build", "bootRun")
 }

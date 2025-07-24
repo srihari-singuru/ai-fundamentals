@@ -7,7 +7,7 @@ spring:
       chat:
         options:
           model: gpt-4.1-nano
-          temperature: 0.0
+          temperature: 0.7
 
 debug: false
 
@@ -32,6 +32,29 @@ resilience4j:
         automaticTransitionFromOpenToHalfOpenEnabled: true
 
 management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus,info,circuitbreakers
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
   health:
     circuitbreakers:
       enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    distribution:
+      percentiles-histogram:
+        "[http.server.requests]": true
+        "[chat.api.duration]": true
+        "[openai.api.duration]": true
+      percentiles:
+        "[http.server.requests]": 0.5, 0.95, 0.99
+    tags:
+      application: ${spring.application.name}
