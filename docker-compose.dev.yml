@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  ai-fundamentals:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    image: ai-fundamentals:dev
+    container_name: ai-fundamentals-dev
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+      - "5005:5005"  # Debug port
+    environment:
+      - OPEN_AI_API_KEY=${OPEN_AI_API_KEY}
+      - SPRING_PROFILES_ACTIVE=dev
+      - LOG_LEVEL=DEBUG
+      - JAVA_OPTS=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+      - ENVIRONMENT=development
+      - APPLICATION_VERSION=dev
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    volumes:
+      - ./src:/app/src:ro
+      - ./build:/app/build
+      - ai-fundamentals-dev-logs:/app/logs
+    networks:
+      - ai-fundamentals-dev-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # Development database (if needed)
+  postgres-dev:
+    image: postgres:15-alpine
+    container_name: ai-fundamentals-postgres-dev
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=ai_fundamentals_dev
+      - POSTGRES_USER=dev_user
+      - POSTGRES_PASSWORD=dev_password
+    volumes:
+      - postgres-dev-data:/var/lib/postgresql/data
+    networks:
+      - ai-fundamentals-dev-network
+    profiles:
+      - database
+
+  # Development Redis
+  redis-dev:
+    image: redis:7-alpine
+    container_name: ai-fundamentals-redis-dev
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-dev-data:/data
+    networks:
+      - ai-fundamentals-dev-network
+    profiles:
+      - cache
+
+networks:
+  ai-fundamentals-dev-network:
+    driver: bridge
+
+volumes:
+  ai-fundamentals-dev-logs:
+    driver: local
+  postgres-dev-data:
+    driver: local
+  redis-dev-data:
+    driver: local

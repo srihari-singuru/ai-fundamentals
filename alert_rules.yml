@@ -1,0 +1,238 @@
+# Prometheus alerting rules for AI Fundamentals application
+groups:
+  - name: ai-fundamentals-alerts
+    rules:
+      # Application Health Alerts
+      - alert: ApplicationDown
+        expr: up{job="ai-fundamentals"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: ai-fundamentals
+        annotations:
+          summary: "AI Fundamentals application is down"
+          description: "AI Fundamentals application has been down for more than 1 minute"
+
+      - alert: HighErrorRate
+        expr: rate(http_server_requests_total{status=~"5.."}[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          service: ai-fundamentals
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value }} errors per second over the last 5 minutes"
+
+      # AI-Specific Alerts
+      - alert: HighAILatency
+        expr: histogram_quantile(0.95, rate(ai_model_latency_seconds_bucket[5m])) > 30
+        for: 3m
+        labels:
+          severity: warning
+          service: ai-fundamentals
+        annotations:
+          summary: "High AI model latency"
+          description: "95th percentile AI model latency is {{ $value }}s, exceeding 30s threshold"
+
+      - alert: AIServiceErrors
+        expr: rate(ai_errors_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+          service: ai-fundamentals
+        annotations:
+          summary: "High AI service error rate"
+          description: "AI service error rate is {{ $value }} errors per second"
+
+      - alert: ExcessiveTokenUsage
+        expr: rate(ai_tokens_used_total[1h]) > 10000
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-fundamentals
+        annotations:
+          summary: "Excessive token usage detected"
+          description: "Token usage rate is {{ $value }} tokens per hour, exceeding threshold"
+
+      # Circuit Breaker Alerts
+      - alert: CircuitBreakerOpen
+        expr: circuit_breaker_events_total{event="state_transition",circuit_breaker=~".*",new_state="OPEN"} > 0
+        for: 0m
+        labels:
+          severity: warning
+          service: ai-fundamentals
+        annotations:
+          summary: "Circuit breaker opened"
+          description: "Circuit breaker {{ $labels.circuit_breaker }} has opened"
+
+      - alert: CircuitBreakerHalfOpen
+        expr: circuit_breaker_events_total{event="state_transition",circuit_breaker=~".*",new_state="HALF_OPEN"} > 0
+        for: 0m
+        labels:
+          severity: info
+          service: ai-fundamentals
+        annotations:
+          summary: "Circuit breaker half-open"
+          description: "Circuit breaker {{ $labels.circuit_breaker }} is in half-open state"
+
+      # System Resource Alerts
+      - alert: HighMemoryUsage
+        expr: (jvm_memory_heap_used / jvm_memory_heap_max) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-fundamentals
+        annotations:
+          summary: "High JVM heap memory usage"
+          description: "JVM heap memory usage is {{ $value }}%, exceeding 85% threshold"
+
+      - alert: HighCPUUsage
+        expr: system_cpu_usage > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-fundamentals
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value }}%, exceeding 80% threshold"
+
+      # Connection Pool Alerts
+      - alert: ConnectionPoolExhaustion
+        expr: connection_pool_active / (connection_pool_active + connection_pool_idle) > 0.9
+        for: 2m
+        labels:
+          severity: warning
+          service: ai-fundamentals
+        annotations:
+          summary: "Connection pool near exhaustion"
+          description: "Connection pool utilization is {{ $value }}%, exceeding 90% threshold"
+
+      - alert: HighConnectionTimeouts
+        expr: rate(connection_pool_timeouts_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          service: ai-fundamentals
+        annotations:
+          summary: "High connection timeout rate"
+          description: "Connection timeout rate is {{ $value }} timeouts per second"
+
+      # Cache Performance Alerts
+      - alert: LowCacheHitRatio
+        expr: cache_hit_ratio < 0.7
+        for: 5m
+        labels:
+          severity: warning
+          service: ai-fundamentals
+        annotations:
+          summary: "Low cache hit ratio"
+          description: "Cache {{ $labels.cache }} hit ratio is {{ $value }}, below 70% threshold"
+
+      - alert: HighCacheEvictionRate
+        expr: rate(cache_evictions_total[5m]) > 10
+        for: 3m
+        labels:
+          severity: info
+          service: ai-fundamentals
+        annotations:
+          summary: "High cache eviction rate"
+          description: "Cache {{ $labels.cache }} eviction rate is {{ $value }} evictions per second"
+
+      # Business Metrics Alerts
+      - alert: NoActiveConversations
+        expr: conversation_active_count == 0
+        for: 10m
+        labels:
+          severity: info
+          service: ai-fundamentals
+        annotations:
+          summary: "No active conversations"
+          description: "No active conversations for the last 10 minutes"
+
+      - alert: HighConversationFailureRate
+        expr: rate(conversation_ended_total{reason="error"}[5m]) / rate(conversation_started_total[5m]) > 0.1
+        for: 3m
+        labels:
+          severity: warning
+          service: ai-fundamentals
+        annotations:
+          summary: "High conversation failure rate"
+          description: "Conversation failure rate is {{ $value }}%, exceeding 10% threshold"
+
+      # Streaming Performance Alerts
+      - alert: HighBackpressureEvents
+        expr: rate(ai_streaming_backpressure_events_total[5m]) > 1
+        for: 2m
+        labels:
+          severity: warning
+          service: ai-fundamentals
+        annotations:
+          summary: "High backpressure events in streaming"
+          description: "Backpressure events rate is {{ $value }} events per second"
+
+      - alert: DroppedTokensDetected
+        expr: rate(ai_streaming_tokens_dropped_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          service: ai-fundamentals
+        annotations:
+          summary: "Tokens being dropped due to backpressure"
+          description: "Tokens are being dropped at {{ $value }} tokens per second due to backpressure"
+
+      # Rate Limiting Alerts
+      - alert: RateLimitViolations
+        expr: rate(resilience4j_ratelimiter_calls_total{kind="failed"}[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: info
+          service: ai-fundamentals
+        annotations:
+          summary: "Rate limit violations detected"
+          description: "Rate limit violations for {{ $labels.name }} at {{ $value }} violations per second"
+
+  - name: ai-fundamentals-sla-alerts
+    rules:
+      # SLA-based alerts
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_server_requests_seconds_bucket[5m])) > 2
+        for: 3m
+        labels:
+          severity: warning
+          service: ai-fundamentals
+        annotations:
+          summary: "High response time"
+          description: "95th percentile response time is {{ $value }}s, exceeding 2s SLA"
+
+      - alert: LowThroughput
+        expr: rate(http_server_requests_total[5m]) < 1
+        for: 5m
+        labels:
+          severity: info
+          service: ai-fundamentals
+        annotations:
+          summary: "Low request throughput"
+          description: "Request throughput is {{ $value }} requests per second, below expected threshold"
+
+  - name: ai-fundamentals-capacity-alerts
+    rules:
+      # Capacity planning alerts
+      - alert: HighActiveConnections
+        expr: chat_connections_active > 100
+        for: 5m
+        labels:
+          severity: info
+          service: ai-fundamentals
+        annotations:
+          summary: "High number of active connections"
+          description: "Active connections count is {{ $value }}, approaching capacity limits"
+
+      - alert: MemoryLeakSuspected
+        expr: increase(jvm_memory_heap_used[1h]) > 100000000  # 100MB increase per hour
+        for: 2h
+        labels:
+          severity: warning
+          service: ai-fundamentals
+        annotations:
+          summary: "Potential memory leak detected"
+          description: "Heap memory usage increased by {{ $value }} bytes in the last hour"

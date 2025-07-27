@@ -1,5 +1,6 @@
 package com.srihari.ai.controller.api;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -16,8 +17,8 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
-import com.srihari.ai.config.TestSecurityConfig;
-import com.srihari.ai.metrics.ChatMetrics;
+import com.srihari.ai.configuration.TestSecurityConfig;
+import com.srihari.ai.metrics.CustomMetrics;
 import com.srihari.ai.model.dto.ChatCompletionRequest;
 import com.srihari.ai.service.chat.ApiChatService;
 
@@ -38,8 +39,49 @@ class ChatApiControllerTest {
 
         @Bean
         @Primary
-        public ChatMetrics chatMetrics() {
-            return mock(ChatMetrics.class);
+        public CustomMetrics customMetrics() {
+            return mock(CustomMetrics.class);
+        }
+        
+        @Bean
+        @Primary
+        public com.srihari.ai.common.StructuredLogger structuredLogger() {
+            return mock(com.srihari.ai.common.StructuredLogger.class);
+        }
+        
+        @Bean
+        @Primary
+        public com.srihari.ai.service.validation.InputValidationService inputValidationService() {
+            return mock(com.srihari.ai.service.validation.InputValidationService.class);
+        }
+        
+        @Bean
+        @Primary
+        public com.srihari.ai.security.SensitiveDataMasker sensitiveDataMasker() {
+            return mock(com.srihari.ai.security.SensitiveDataMasker.class);
+        }
+        
+        @Bean
+        @Primary
+        public com.srihari.ai.event.ChatEventPublisher chatEventPublisher() {
+            return mock(com.srihari.ai.event.ChatEventPublisher.class);
+        }
+        
+        @Bean
+        @Primary
+        public com.srihari.ai.security.JwtAuthenticationManager jwtAuthenticationManager() {
+            return mock(com.srihari.ai.security.JwtAuthenticationManager.class);
+        }
+        
+        @Bean
+        @Primary
+        public com.srihari.ai.security.SecurityHeadersFilter securityHeadersFilter() {
+            com.srihari.ai.security.SecurityHeadersFilter filter = mock(com.srihari.ai.security.SecurityHeadersFilter.class);
+            when(filter.filter(any(), any())).thenAnswer(invocation -> {
+                org.springframework.web.server.WebFilterChain chain = invocation.getArgument(1);
+                return chain.filter(invocation.getArgument(0));
+            });
+            return filter;
         }
     }
 
@@ -50,7 +92,10 @@ class ChatApiControllerTest {
     private ApiChatService apiChatService;
 
     @Autowired
-    private ChatMetrics chatMetrics;
+    private CustomMetrics customMetrics;
+    
+    @Autowired
+    private com.srihari.ai.service.validation.InputValidationService inputValidationService;
 
     @Test
     void shouldReturnChatCompletion() {
@@ -59,6 +104,11 @@ class ChatApiControllerTest {
         request.setMessage("Hello");
         request.setModel("gpt-4.1-nano");
         request.setTemperature(0.7);
+
+        // Mock validation service
+        com.srihari.ai.service.validation.InputValidationService.ValidationResult validationResult = 
+            com.srihari.ai.service.validation.InputValidationService.ValidationResult.valid("Hello");
+        when(inputValidationService.validateUserMessage(anyString())).thenReturn(validationResult);
 
         when(apiChatService.generateResponse(anyString()))
                 .thenReturn(Flux.just("Hello", " there", "!"));

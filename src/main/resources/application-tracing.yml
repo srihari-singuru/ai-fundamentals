@@ -1,0 +1,12 @@
+management:
+  tracing:
+    enabled: true  # Enable tracing with 'tracing' profile
+    sampling:
+      probability: 1.0  # Sample 100% of traces when tracing is enabled
+    zipkin:
+      endpoint: http://localhost:9411/api/v2/spans
+
+logging:
+  level:
+    zipkin2: WARN  # Reduce zipkin logging noise
+    brave: WARN    # Reduce brave tracing logging noise

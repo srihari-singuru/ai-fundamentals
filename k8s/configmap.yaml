@@ -1,0 +1,140 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-fundamentals-config
+  namespace: ai-fundamentals
+  labels:
+    app.kubernetes.io/name: ai-fundamentals
+    app.kubernetes.io/component: config
+    app.kubernetes.io/part-of: ai-fundamentals-platform
+data:
+  # Application configuration
+  SPRING_PROFILES_ACTIVE: "prod"
+  LOG_LEVEL: "INFO"
+  ENVIRONMENT: "production"
+  
+  # Server configuration
+  SERVER_PORT: "8080"
+  
+  # AI Model configuration
+  AI_MODEL: "gpt-4.1-nano"
+  AI_TEMPERATURE: "0.7"
+  
+  # Resilience configuration
+  CIRCUIT_BREAKER_WINDOW_SIZE: "20"
+  CIRCUIT_BREAKER_MIN_CALLS: "10"
+  CIRCUIT_BREAKER_WAIT_DURATION: "30s"
+  CIRCUIT_BREAKER_FAILURE_RATE: "60"
+  
+  # Rate limiting configuration
+  RATE_LIMIT_API: "100"
+  RATE_LIMIT_WEB: "200"
+  RATE_LIMIT_OPENAI: "50"
+  
+  # Bulkhead configuration
+  BULKHEAD_MAX_CALLS: "50"
+  TIMEOUT_DURATION: "60s"
+  
+  # Logging configuration
+  JSON_LOGGING_ENABLED: "true"
+  REQUEST_LOGGING_ENABLED: "true"
+  PERFORMANCE_LOGGING_ENABLED: "true"
+  MAX_LOG_MESSAGE_LENGTH: "2000"
+  SLOW_OPERATION_THRESHOLD: "2000"
+  
+  # Cache configuration
+  CACHE_CONVERSATION_SIZE: "5000"
+  CACHE_CONVERSATION_EXPIRE_WRITE: "4h"
+  CACHE_CONVERSATION_EXPIRE_ACCESS: "1h"
+  CACHE_CONVERSATION_REFRESH: "30m"
+  CACHE_RESPONSE_SIZE: "2000"
+  CACHE_RESPONSE_EXPIRE_WRITE: "1h"
+  CACHE_RESPONSE_EXPIRE_ACCESS: "30m"
+  CACHE_MODEL_SIZE: "500"
+  CACHE_MODEL_EXPIRE_WRITE: "2h"
+  
+  # WebClient configuration
+  WEBCLIENT_CONNECT_TIMEOUT: "10s"
+  WEBCLIENT_READ_TIMEOUT: "60s"
+  WEBCLIENT_WRITE_TIMEOUT: "30s"
+  WEBCLIENT_RESPONSE_TIMEOUT: "120s"
+  CONNECTION_POOL_MAX: "200"
+  CONNECTION_POOL_IDLE_TIME: "60"
+  CONNECTION_POOL_LIFE_TIME: "300"
+  CONNECTION_POOL_ACQUIRE_TIMEOUT: "30s"
+  
+  # Graceful shutdown configuration
+  GRACEFUL_SHUTDOWN_TIMEOUT: "60s"
+  CONNECTION_DRAIN_TIMEOUT: "30s"
+  
+  # Security configuration
+  CORS_ALLOWED_METHODS: "GET,POST,PUT,DELETE,OPTIONS"
+  CORS_ALLOWED_HEADERS: "*"
+  CORS_ALLOW_CREDENTIALS: "false"
+  CORS_MAX_AGE: "3600"
+  RATE_LIMITING_ENABLED: "true"
+  RATE_LIMIT_PER_IP: "1000"
+  RATE_LIMIT_PER_IP_WINDOW: "3600s"
+  
+  # Security headers
+  CSP_HEADER: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'"
+  HSTS_HEADER: "max-age=31536000; includeSubDomains"
+  X_FRAME_OPTIONS: "DENY"
+  X_CONTENT_TYPE_OPTIONS: "nosniff"
+  REFERRER_POLICY: "strict-origin-when-cross-origin"
+  
+  # Feature flags
+  FEATURE_ADVANCED_LOGGING: "true"
+  FEATURE_CACHING: "true"
+  FEATURE_RATE_LIMITING: "true"
+  FEATURE_CIRCUIT_BREAKER: "true"
+  FEATURE_METRICS: "true"
+  FEATURE_TRACING: "false"
+  FEATURE_NOTIFICATIONS: "true"
+  FEATURE_SECURITY_HEADERS: "true"
+  
+  # Monitoring configuration
+  METRICS_STEP: "30s"
+  HEALTH_DISK_THRESHOLD: "10GB"
+  TRACING_ENABLED: "false"
+  TRACING_SAMPLING_RATE: "0.1"
+  
+  # JVM configuration
+  JMX_ENABLED: "true"
+  TASK_POOL_CORE_SIZE: "8"
+  TASK_POOL_MAX_SIZE: "32"
+  TASK_POOL_QUEUE_CAPACITY: "1000"
+  TASK_POOL_KEEP_ALIVE: "60s"
+  SCHEDULING_POOL_SIZE: "4"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-fundamentals-jvm-config
+  namespace: ai-fundamentals
+  labels:
+    app.kubernetes.io/name: ai-fundamentals
+    app.kubernetes.io/component: jvm-config
+    app.kubernetes.io/part-of: ai-fundamentals-platform
+data:
+  JAVA_OPTS: >-
+    -server
+    -XX:+UseContainerSupport
+    -XX:MaxRAMPercentage=75.0
+    -XX:+UseG1GC
+    -XX:+UseStringDeduplication
+    -XX:+OptimizeStringConcat
+    -XX:+UseCompressedOops
+    -XX:+UseCompressedClassPointers
+    -XX:+TieredCompilation
+    -XX:TieredStopAtLevel=1
+    -XX:+UnlockExperimentalVMOptions
+    -XX:+UseCGroupMemoryLimitForHeap
+    -Djava.security.egd=file:/dev/./urandom
+    -Djava.awt.headless=true
+    -Dfile.encoding=UTF-8
+    -Duser.timezone=UTC
+    -Djava.net.preferIPv4Stack=true
+  JVM_MEMORY_OPTS: "-Xms512m -Xmx1024m"
+  GC_OPTS: "-XX:+UseG1GC -XX:MaxGCPauseMillis=200"

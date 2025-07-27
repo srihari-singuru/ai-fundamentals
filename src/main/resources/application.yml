@@ -8,8 +8,62 @@ spring:
         options:
           model: gpt-4.1-nano
           temperature: 0.7
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+  sleuth:
+    enabled: false
 
-debug: false
+server:
+  shutdown: graceful
+
+app:
+  logging:
+    level: INFO
+    json-enabled: false
+    request-logging-enabled: true
+    performance-logging-enabled: true
+    log-sensitive-data: false
+    max-message-length: 1000
+    include-stack-trace: true
+    trace-method-calls: false
+    slow-operation-threshold-ms: 1000
+  events:
+    notifications:
+      enabled: false
+
+logging:
+  level:
+    com.srihari.ai: INFO
+    org.springframework.ai: WARN
+    reactor.netty: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{correlationId:-}] %logger{36} - %msg%n"
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+logging:
+  level:
+    com.srihari.ai: DEBUG
+    org.springframework.ai: INFO
+    reactor.netty: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{correlationId:-}] %logger{36} - %msg%n"
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+logging:
+  level:
+    com.srihari.ai: INFO
+    org.springframework.ai: WARN
+    reactor.netty: WARN
+    org.springframework.web: WARN
+  config: classpath:logback-spring.xml
 
 resilience4j:
   circuitbreaker:
@@ -30,12 +84,83 @@ resilience4j:
         waitDurationInOpenState: 10s
         failureRateThreshold: 50
         automaticTransitionFromOpenToHalfOpenEnabled: true
+  ratelimiter:
+    instances:
+      api:
+        limitForPeriod: 50
+        limitRefreshPeriod: 60s
+        timeoutDuration: 5s
+      web:
+        limitForPeriod: 100
+        limitRefreshPeriod: 60s
+        timeoutDuration: 2s
+      openai:
+        limitForPeriod: 20
+        limitRefreshPeriod: 60s
+        timeoutDuration: 10s
+  bulkhead:
+    instances:
+      ai-service:
+        maxConcurrentCalls: 25
+        maxWaitDuration: 5s
+  timelimiter:
+    instances:
+      ai-service:
+        timeoutDuration: 60s
+        cancelRunningFuture: true
+
+app:
+  rate-limiting:
+    api:
+      limit-for-period: 50
+      limit-refresh-period: 60s
+      timeout-duration: 5s
+    web:
+      limit-for-period: 100
+      limit-refresh-period: 60s
+      timeout-duration: 2s
+    open-ai:
+      limit-for-period: 20
+      limit-refresh-period: 60s
+      timeout-duration: 10s
+  webclient:
+    timeout:
+      connect: 5s
+      read: 30s
+      write: 10s
+      response: 60s
+    connection-pool:
+      max-connections: 100
+      max-idle-time: 30
+      max-life-time: 60
+      pending-acquire-timeout: 10s
+    bulkhead:
+      max-concurrent-calls: 25
+      max-wait-duration: 5s
+  cache:
+    conversation:
+      maximum-size: 1000
+      expire-after-write: 2h
+      expire-after-access: 30m
+      refresh-after-write: 15m
+    response:
+      maximum-size: 500
+      expire-after-write: 30m
+      expire-after-access: 10m
+    model:
+      maximum-size: 100
+      expire-after-write: 1h
+  graceful-shutdown:
+    enabled: true
+    timeout: 30s
+    connection-drain-timeout: 15s
+    wait-for-active-requests: true
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,metrics,prometheus,info,circuitbreakers
+        include: health,metrics,prometheus,info,circuitbreakers,httpexchanges
       base-path: /actuator
   endpoint:
     health:
@@ -44,17 +169,79 @@ management:
   health:
     circuitbreakers:
       enabled: true
+  tracing:
+    enabled: false
+  zipkin:
+    tracing:
+      endpoint: ""
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha
+    tryItOutEnabled: true
+    filter: true
+    displayRequestDuration: true
+    displayOperationId: false
+    defaultModelsExpandDepth: 1
+    defaultModelExpandDepth: 1
+    docExpansion: none
+  show-actuator: false
+  group-configs:
+    - group: 'public-api'
+      paths-to-match: '/v1/**'
+      display-name: 'AI Fundamentals Public API'
+    - group: 'web-ui'
+      paths-to-match: '/chat/**'
+      display-name: 'Web UI Endpoints'
   prometheus:
     metrics:
       export:
         enabled: true
+        step: 15s
+        descriptions: true
   metrics:
     distribution:
       percentiles-histogram:
         "[http.server.requests]": true
         "[chat.api.duration]": true
         "[openai.api.duration]": true
+        "[api.operation.duration]": true
+        "[conversation.duration]": true
+        "[ai.model.latency]": true
       percentiles:
         "[http.server.requests]": 0.5, 0.95, 0.99
+        "[chat.api.duration]": 0.5, 0.95, 0.99
+        "[openai.api.duration]": 0.5, 0.95, 0.99
+        "[api.operation.duration]": 0.5, 0.95, 0.99
+        "[conversation.duration]": 0.5, 0.95, 0.99
+        "[ai.model.latency]": 0.5, 0.95, 0.99
+      sla:
+        "[http.server.requests]": 100ms, 500ms, 1s, 2s, 5s
+        "[chat.api.duration]": 1s, 5s, 10s, 30s
+        "[openai.api.duration]": 1s, 5s, 10s, 30s
+        "[api.operation.duration]": 500ms, 1s, 5s, 10s
+        "[conversation.duration]": 1m, 5m, 15m, 30m
+        "[ai.model.latency]": 500ms, 1s, 5s, 10s
     tags:
       application: ${spring.application.name}
+      environment: ${ENVIRONMENT:development}
+      version: ${APPLICATION_VERSION:unknown}
+      instance: ${HOSTNAME:${random.uuid}}
+      service: ai-fundamentals
+    web:
+      server:
+        request:
+          autotime:
+            enabled: true
+            percentiles: 0.5, 0.95, 0.99
+            percentiles-histogram: true
+  tracing:
+    enabled: false  # Disable tracing by default
+    sampling:
+      probability: 0.0  # Don't sample any traces by default

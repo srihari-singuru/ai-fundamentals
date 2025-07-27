@@ -1,0 +1,15 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ai-fundamentals-pdb
+  namespace: ai-fundamentals
+  labels:
+    app.kubernetes.io/name: ai-fundamentals
+    app.kubernetes.io/component: pdb
+    app.kubernetes.io/part-of: ai-fundamentals-platform
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ai-fundamentals
+      app.kubernetes.io/component: application

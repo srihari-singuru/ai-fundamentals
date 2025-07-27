@@ -1,0 +1,90 @@
+# Prometheus configuration for AI Fundamentals application
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'ai-fundamentals-monitor'
+
+rule_files:
+  - "alert_rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+scrape_configs:
+  # AI Fundamentals Application
+  - job_name: 'ai-fundamentals'
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    static_configs:
+      - targets: ['localhost:8080']
+        labels:
+          service: 'ai-fundamentals'
+          environment: 'development'
+    metric_relabel_configs:
+      # Add custom labels for better filtering
+      - source_labels: [__name__]
+        regex: 'ai_.*'
+        target_label: 'metric_type'
+        replacement: 'ai_specific'
+      - source_labels: [__name__]
+        regex: 'conversation_.*'
+        target_label: 'metric_type'
+        replacement: 'business'
+      - source_labels: [__name__]
+        regex: 'jvm_.*|system_.*'
+        target_label: 'metric_type'
+        replacement: 'system'
+      - source_labels: [__name__]
+        regex: 'http_.*'
+        target_label: 'metric_type'
+        replacement: 'http'
+      - source_labels: [__name__]
+        regex: 'cache_.*'
+        target_label: 'metric_type'
+        replacement: 'cache'
+      - source_labels: [__name__]
+        regex: 'circuit_breaker_.*'
+        target_label: 'metric_type'
+        replacement: 'resilience'
+
+  # Production configuration (commented out for development)
+  # - job_name: 'ai-fundamentals-prod'
+  #   metrics_path: '/actuator/prometheus'
+  #   scrape_interval: 30s
+  #   scrape_timeout: 10s
+  #   static_configs:
+  #     - targets: ['ai-fundamentals:8080']
+  #       labels:
+  #         service: 'ai-fundamentals'
+  #         environment: 'production'
+
+  # Kubernetes service discovery (for production deployment)
+  # - job_name: 'ai-fundamentals-k8s'
+  #   kubernetes_sd_configs:
+  #     - role: endpoints
+  #       namespaces:
+  #         names:
+  #           - ai-fundamentals
+  #   relabel_configs:
+  #     - source_labels: [__meta_kubernetes_service_name]
+  #       action: keep
+  #       regex: ai-fundamentals
+  #     - source_labels: [__meta_kubernetes_endpoint_port_name]
+  #       action: keep
+  #       regex: http
+  #     - source_labels: [__meta_kubernetes_namespace]
+  #       target_label: kubernetes_namespace
+  #     - source_labels: [__meta_kubernetes_service_name]
+  #       target_label: kubernetes_service_name
+  #     - source_labels: [__meta_kubernetes_pod_name]
+  #       target_label: kubernetes_pod_name
+
+  # Self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

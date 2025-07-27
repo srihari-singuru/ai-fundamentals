@@ -1,0 +1,43 @@
+spring:
+  ai:
+    openai:
+      api-key: ${OPEN_AI_API_KEY:test-api-key-for-testing-only}
+  main:
+    allow-bean-definition-overriding: true
+
+app:
+  security:
+    config:
+      validate-on-startup: false
+      fail-fast-on-missing-config: false
+      required-properties: []
+  logging:
+    level: INFO
+    json-enabled: false
+    request-logging-enabled: false
+    performance-logging-enabled: false
+  events:
+    notifications:
+      enabled: false
+  webclient:
+    timeout:
+      connect: 1s
+      read: 2s
+      response: 3s
+
+logging:
+  level:
+    com.srihari.ai: INFO
+    org.springframework.ai: WARN
+    reactor.netty: WARN
+
+management:
+  tracing:
+    enabled: false
+    sampling:
+      probability: 0.0
+  health:
+    openai:
+      enabled: false
+    chatmemory:
+      enabled: false

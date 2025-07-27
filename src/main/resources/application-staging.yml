@@ -1,0 +1,253 @@
+spring:
+  application:
+    name: ai-fundamentals
+  ai:
+    openai:
+      api-key: ${OPEN_AI_API_KEY}
+      chat:
+        options:
+          model: ${AI_MODEL:gpt-4.1-nano}
+          temperature: ${AI_TEMPERATURE:0.7}
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+server:
+  shutdown: graceful
+  port: ${SERVER_PORT:8080}
+  compression:
+    enabled: true
+  error:
+    include-stacktrace: on-param
+    include-message: always
+
+# Staging logging configuration - more verbose than production
+logging:
+  level:
+    com.srihari.ai: ${LOG_LEVEL:DEBUG}
+    org.springframework.ai: INFO
+    reactor.netty: INFO
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+  config: classpath:logback-spring.xml
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{correlationId:-}] %logger{36} - %msg%n"
+
+# Staging resilience configuration - more lenient than production
+resilience4j:
+  circuitbreaker:
+    instances:
+      openai:
+        registerHealthIndicator: true
+        slidingWindowSize: 15
+        minimumNumberOfCalls: 8
+        permittedNumberOfCallsInHalfOpenState: 4
+        waitDurationInOpenState: 20s
+        failureRateThreshold: 70
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+      chatCompletionCB:
+        registerHealthIndicator: true
+        slidingWindowSize: 15
+        minimumNumberOfCalls: 8
+        permittedNumberOfCallsInHalfOpenState: 4
+        waitDurationInOpenState: 20s
+        failureRateThreshold: 70
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+  ratelimiter:
+    instances:
+      api:
+        limitForPeriod: 75
+        limitRefreshPeriod: 60s
+        timeoutDuration: 5s
+      web:
+        limitForPeriod: 150
+        limitRefreshPeriod: 60s
+        timeoutDuration: 2s
+      openai:
+        limitForPeriod: 30
+        limitRefreshPeriod: 60s
+        timeoutDuration: 10s
+  bulkhead:
+    instances:
+      ai-service:
+        maxConcurrentCalls: 35
+        maxWaitDuration: 5s
+  timelimiter:
+    instances:
+      ai-service:
+        timeoutDuration: 60s
+        cancelRunningFuture: true
+
+# Staging application configuration
+app:
+  logging:
+    level: ${LOG_LEVEL:DEBUG}
+    json-enabled: ${JSON_LOGGING_ENABLED:true}
+    request-logging-enabled: true
+    performance-logging-enabled: true
+    log-sensitive-data: false
+    max-message-length: 1500
+    include-stack-trace: true
+    trace-method-calls: false
+    slow-operation-threshold-ms: 1500
+  events:
+    notifications:
+      enabled: ${NOTIFICATIONS_ENABLED:true}
+  rate-limiting:
+    api:
+      limit-for-period: 75
+      limit-refresh-period: 60s
+      timeout-duration: 5s
+    web:
+      limit-for-period: 150
+      limit-refresh-period: 60s
+      timeout-duration: 2s
+    open-ai:
+      limit-for-period: 30
+      limit-refresh-period: 60s
+      timeout-duration: 10s
+  webclient:
+    timeout:
+      connect: 8s
+      read: 45s
+      write: 20s
+      response: 90s
+    connection-pool:
+      max-connections: 150
+      max-idle-time: 45
+      max-life-time: 180
+      pending-acquire-timeout: 20s
+    bulkhead:
+      max-concurrent-calls: 35
+      max-wait-duration: 8s
+  cache:
+    conversation:
+      maximum-size: 3000
+      expire-after-write: 3h
+      expire-after-access: 45m
+      refresh-after-write: 20m
+    response:
+      maximum-size: 1000
+      expire-after-write: 45m
+      expire-after-access: 20m
+    model:
+      maximum-size: 200
+      expire-after-write: 90m
+  graceful-shutdown:
+    enabled: true
+    timeout: 45s
+    connection-drain-timeout: 20s
+    wait-for-active-requests: true
+  security:
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://staging.example.com}
+      allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+      allowed-headers: "*"
+      allow-credentials: false
+      max-age: 3600
+    rate-limit:
+      enabled: true
+      per-ip-limit: 500
+      per-ip-window: 3600s
+    headers:
+      content-security-policy: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'"
+      strict-transport-security: "max-age=31536000; includeSubDomains"
+      x-frame-options: DENY
+      x-content-type-options: nosniff
+      referrer-policy: strict-origin-when-cross-origin
+  feature-flags:
+    advanced-logging: true
+    caching: true
+    rate-limiting: true
+    circuit-breaker: true
+    metrics: true
+    tracing: ${FEATURE_TRACING:true}
+    notifications: true
+    security-headers: true
+
+# Staging monitoring and management - more open than production
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus,info,circuitbreakers,httpexchanges,env,configprops
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+    metrics:
+      enabled: true
+    prometheus:
+      enabled: true
+    info:
+      enabled: true
+    env:
+      enabled: true
+      show-values: when-authorized
+    configprops:
+      enabled: true
+      show-values: when-authorized
+  health:
+    circuitbreakers:
+      enabled: true
+    diskspace:
+      enabled: true
+      threshold: 5GB
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+        step: 15s
+        descriptions: true
+  metrics:
+    distribution:
+      percentiles-histogram:
+        "[http.server.requests]": true
+        "[chat.api.duration]": true
+        "[openai.api.duration]": true
+        "[cache.gets]": true
+        "[cache.puts]": true
+      percentiles:
+        "[http.server.requests]": 0.5, 0.95, 0.99
+        "[chat.api.duration]": 0.5, 0.95, 0.99
+        "[openai.api.duration]": 0.5, 0.95, 0.99
+      sla:
+        "[http.server.requests]": 100ms, 500ms, 1s, 2s, 5s
+        "[chat.api.duration]": 1s, 5s, 10s, 30s
+        "[openai.api.duration]": 1s, 5s, 10s, 30s
+    tags:
+      application: ${spring.application.name}
+      environment: staging
+      version: ${APPLICATION_VERSION:unknown}
+      instance: ${HOSTNAME:${random.uuid}}
+    export:
+      prometheus:
+        enabled: true
+        step: 15s
+        descriptions: true
+  tracing:
+    enabled: ${TRACING_ENABLED:true}
+    sampling:
+      probability: ${TRACING_SAMPLING_RATE:0.3}
+    zipkin:
+      endpoint: ${ZIPKIN_ENDPOINT:http://zipkin:9411/api/v2/spans}
+    baggage:
+      correlation:
+        enabled: true
+        fields: correlationId
+      remote-fields: correlationId
+
+# JVM configuration for staging
+spring:
+  jmx:
+    enabled: true
+  task:
+    execution:
+      pool:
+        core-size: 6
+        max-size: 24
+        queue-capacity: 500
+        keep-alive: 60s
+    scheduling:
+      pool:
+        size: 3
