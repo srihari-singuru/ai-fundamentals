@@ -547,6 +547,48 @@ public class CustomMetrics {
                 .register(meterRegistry));
     }
 
+    // ========== GRACEFUL SHUTDOWN METRICS ==========
+
+    /**
+     * Record graceful shutdown start
+     */
+    public void recordGracefulShutdownStart() {
+        Counter.builder("app.shutdown.started.total")
+                .description("Total graceful shutdowns started")
+                .register(meterRegistry)
+                .increment();
+    }
+
+    /**
+     * Record graceful shutdown completion
+     */
+    public void recordGracefulShutdownComplete(long durationMs) {
+        Counter.builder("app.shutdown.completed.total")
+                .description("Total graceful shutdowns completed successfully")
+                .register(meterRegistry)
+                .increment();
+        
+        Timer.builder("app.shutdown.duration")
+                .description("Graceful shutdown duration")
+                .register(meterRegistry)
+                .record(durationMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+    }
+
+    /**
+     * Record graceful shutdown error
+     */
+    public void recordGracefulShutdownError(long durationMs) {
+        Counter.builder("app.shutdown.errors.total")
+                .description("Total graceful shutdown errors")
+                .register(meterRegistry)
+                .increment();
+        
+        Timer.builder("app.shutdown.error.duration")
+                .description("Failed graceful shutdown duration")
+                .register(meterRegistry)
+                .record(durationMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+    }
+
     // ========== PRIVATE HELPER METHODS ==========
 
     private void initializeGauges() {

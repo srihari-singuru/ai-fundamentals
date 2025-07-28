@@ -8,9 +8,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.ApplicationListener;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.ContextClosedEvent;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 
 import com.srihari.ai.common.StructuredLogger;
@@ -33,6 +33,7 @@ public class GracefulShutdownConfiguration {
     /**
      * Configuration properties for graceful shutdown settings.
      */
+    @Component
     @ConfigurationProperties(prefix = "app.graceful-shutdown")
     public static class GracefulShutdownProperties {
         private Duration timeout = Duration.ofSeconds(30);
@@ -41,20 +42,40 @@ public class GracefulShutdownConfiguration {
         private boolean waitForActiveRequests = true;
 
         // Getters and setters
-        public Duration getTimeout() { return timeout; }
-        public void setTimeout(Duration timeout) { this.timeout = timeout; }
-        public Duration getConnectionDrainTimeout() { return connectionDrainTimeout; }
-        public void setConnectionDrainTimeout(Duration connectionDrainTimeout) { this.connectionDrainTimeout = connectionDrainTimeout; }
-        public boolean isEnabled() { return enabled; }
-        public void setEnabled(boolean enabled) { this.enabled = enabled; }
-        public boolean isWaitForActiveRequests() { return waitForActiveRequests; }
-        public void setWaitForActiveRequests(boolean waitForActiveRequests) { this.waitForActiveRequests = waitForActiveRequests; }
+        public Duration getTimeout() {
+            return timeout;
+        }
+
+        public void setTimeout(Duration timeout) {
+            this.timeout = timeout;
+        }
+
+        public Duration getConnectionDrainTimeout() {
+            return connectionDrainTimeout;
+        }
+
+        public void setConnectionDrainTimeout(Duration connectionDrainTimeout) {
+            this.connectionDrainTimeout = connectionDrainTimeout;
+        }
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public boolean isWaitForActiveRequests() {
+            return waitForActiveRequests;
+        }
+
+        public void setWaitForActiveRequests(boolean waitForActiveRequests) {
+            this.waitForActiveRequests = waitForActiveRequests;
+        }
     }
 
-    @Bean
-    public GracefulShutdownProperties gracefulShutdownProperties() {
-        return new GracefulShutdownProperties();
-    }
+
 
     /**
      * Graceful shutdown handler component.
@@ -62,7 +83,7 @@ public class GracefulShutdownConfiguration {
     @Component
     @RequiredArgsConstructor
     public static class GracefulShutdownHandler implements ApplicationListener<ContextClosedEvent> {
-        
+
         private final GracefulShutdownProperties properties;
         private final StructuredLogger structuredLogger;
         private final CustomMetrics customMetrics;
@@ -71,7 +92,19 @@ public class GracefulShutdownConfiguration {
         private final CountDownLatch shutdownLatch = new CountDownLatch(1);
 
         @Override
-        public void onApplicationEvent(ContextClosedEvent event) {
+        public void onApplicationEvent(@NonNull ContextClosedEvent event) {
+            initiateGracefulShutdown();
+        }
+
+        @PreDestroy
+        public void preDestroy() {
+            initiateGracefulShutdown();
+        }
+
+        /**
+         * Initiates graceful shutdown if not already in progress
+         */
+        public void initiateGracefulShutdown() {
             if (!properties.isEnabled()) {
                 log.info("Graceful shutdown is disabled, performing immediate shutdown");
                 return;
@@ -82,21 +115,16 @@ public class GracefulShutdownConfiguration {
             }
         }
 
-        @PreDestroy
-        public void preDestroy() {
-            if (!shutdownInProgress.get()) {
-                onApplicationEvent(null);
-            }
-        }
-
         private void performGracefulShutdown() {
             long startTime = System.currentTimeMillis();
-            
+
+            // Record shutdown start metric
+            customMetrics.recordGracefulShutdownStart();
+
             structuredLogger.info("Starting graceful shutdown", Map.of(
-                "operation", "graceful_shutdown_start",
-                "timeout", properties.getTimeout().toString(),
-                "connectionDrainTimeout", properties.getConnectionDrainTimeout().toString()
-            ));
+                    "operation", "graceful_shutdown_start",
+                    "timeout", properties.getTimeout().toString(),
+                    "connectionDrainTimeout", properties.getConnectionDrainTimeout().toString()));
 
             try {
                 // Step 1: Stop accepting new requests
@@ -114,17 +142,23 @@ public class GracefulShutdownConfiguration {
                 cleanupResources();
 
                 long duration = System.currentTimeMillis() - startTime;
+
+                // Record successful shutdown metrics
+                customMetrics.recordGracefulShutdownComplete(duration);
+
                 structuredLogger.info("Graceful shutdown completed successfully", Map.of(
-                    "operation", "graceful_shutdown_complete",
-                    "duration", duration + "ms"
-                ));
+                        "operation", "graceful_shutdown_complete",
+                        "duration", duration + "ms"));
 
             } catch (Exception e) {
                 long duration = System.currentTimeMillis() - startTime;
+
+                // Record shutdown error metrics
+                customMetrics.recordGracefulShutdownError(duration);
+
                 structuredLogger.error("Error during graceful shutdown", Map.of(
-                    "operation", "graceful_shutdown_error",
-                    "duration", duration + "ms"
-                ), e);
+                        "operation", "graceful_shutdown_error",
+                        "duration", duration + "ms"), e);
             } finally {
                 shutdownLatch.countDown();
             }
@@ -132,9 +166,8 @@ public class GracefulShutdownConfiguration {
 
         private void stopAcceptingNewRequests() {
             structuredLogger.info("Stopping acceptance of new requests", Map.of(
-                "operation", "stop_new_requests"
-            ));
-            
+                    "operation", "stop_new_requests"));
+
             // Mark the application as shutting down
             // This can be used by health checks to return unhealthy status
             System.setProperty("app.shutdown.in.progress", "true");
@@ -142,27 +175,25 @@ public class GracefulShutdownConfiguration {
 
         private void waitForActiveRequests() {
             structuredLogger.info("Waiting for active requests to complete", Map.of(
-                "operation", "wait_active_requests",
-                "timeout", properties.getTimeout().toString()
-            ));
+                    "operation", "wait_active_requests",
+                    "timeout", properties.getTimeout().toString()));
 
             long timeoutMs = properties.getTimeout().toMillis();
             long startTime = System.currentTimeMillis();
-            
+
             while (System.currentTimeMillis() - startTime < timeoutMs) {
                 // Check if there are active requests (this would need to be tracked)
                 // For now, we'll just wait a reasonable amount of time
                 try {
                     Thread.sleep(1000);
-                    
+
                     // Log progress
                     long elapsed = System.currentTimeMillis() - startTime;
                     if (elapsed % 5000 == 0) { // Log every 5 seconds
                         structuredLogger.debug("Still waiting for active requests", Map.of(
-                            "operation", "wait_active_requests_progress",
-                            "elapsed", elapsed + "ms",
-                            "remaining", (timeoutMs - elapsed) + "ms"
-                        ));
+                                "operation", "wait_active_requests_progress",
+                                "elapsed", elapsed + "ms",
+                                "remaining", (timeoutMs - elapsed) + "ms"));
                     }
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
@@ -173,9 +204,8 @@ public class GracefulShutdownConfiguration {
 
         private void drainConnections() {
             structuredLogger.info("Draining connections", Map.of(
-                "operation", "drain_connections",
-                "timeout", properties.getConnectionDrainTimeout().toString()
-            ));
+                    "operation", "drain_connections",
+                    "timeout", properties.getConnectionDrainTimeout().toString()));
 
             try {
                 // Wait for connection drain timeout
@@ -183,35 +213,30 @@ public class GracefulShutdownConfiguration {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 structuredLogger.warn("Connection draining interrupted", Map.of(
-                    "operation", "drain_connections_interrupted"
-                ));
+                        "operation", "drain_connections_interrupted"));
             }
         }
 
         private void cleanupResources() {
             structuredLogger.info("Cleaning up resources", Map.of(
-                "operation", "cleanup_resources"
-            ));
+                    "operation", "cleanup_resources"));
 
             try {
                 // Clean up cache access times
                 cachingService.cleanupOldAccessTimes();
-                
+
                 // Log final metrics
                 structuredLogger.info("Final application metrics", Map.of(
-                    "operation", "final_metrics",
-                    "uptime", System.currentTimeMillis() - getApplicationStartTime()
-                ));
+                        "operation", "final_metrics",
+                        "uptime", System.currentTimeMillis() - getApplicationStartTime()));
 
                 // Flush any remaining logs
                 structuredLogger.info("Resource cleanup completed", Map.of(
-                    "operation", "cleanup_complete"
-                ));
+                        "operation", "cleanup_complete"));
 
             } catch (Exception e) {
                 structuredLogger.error("Error during resource cleanup", Map.of(
-                    "operation", "cleanup_error"
-                ), e);
+                        "operation", "cleanup_error"), e);
             }
         }
 
@@ -241,7 +266,7 @@ public class GracefulShutdownConfiguration {
     @Component
     @RequiredArgsConstructor
     public static class ShutdownHook {
-        
+
         private final GracefulShutdownHandler shutdownHandler;
         private final StructuredLogger structuredLogger;
 
@@ -249,24 +274,21 @@ public class GracefulShutdownConfiguration {
         public void registerShutdownHook() {
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 structuredLogger.info("JVM shutdown hook triggered", Map.of(
-                    "operation", "jvm_shutdown_hook"
-                ));
+                        "operation", "jvm_shutdown_hook"));
 
                 if (!shutdownHandler.isShutdownInProgress()) {
-                    shutdownHandler.onApplicationEvent(null);
-                    
+                    shutdownHandler.initiateGracefulShutdown();
+
                     // Wait for graceful shutdown to complete
                     try {
                         boolean completed = shutdownHandler.waitForShutdown(30, TimeUnit.SECONDS);
                         if (!completed) {
                             structuredLogger.warn("Graceful shutdown did not complete within timeout", Map.of(
-                                "operation", "shutdown_timeout"
-                            ));
+                                    "operation", "shutdown_timeout"));
                         }
                     } catch (Exception e) {
                         structuredLogger.error("Error waiting for graceful shutdown", Map.of(
-                            "operation", "shutdown_wait_error"
-                        ), e);
+                                "operation", "shutdown_wait_error"), e);
                     }
                 }
             }, "graceful-shutdown-hook"));

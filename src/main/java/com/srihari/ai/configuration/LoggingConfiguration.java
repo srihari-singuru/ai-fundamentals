@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
+import org.springframework.stereotype.Component;
 
 import com.srihari.ai.common.CorrelationIdFilter;
 import com.srihari.ai.common.StructuredLogger;
@@ -27,15 +28,9 @@ public class LoggingConfiguration {
     
     private static final Logger logger = LoggerFactory.getLogger(LoggingConfiguration.class);
     private final Environment environment;
+    private final LoggingProperties loggingProperties;
     
-    /**
-     * Configuration properties for logging behavior.
-     */
-    @Bean
-    @ConfigurationProperties(prefix = "app.logging")
-    public LoggingProperties loggingProperties() {
-        return new LoggingProperties();
-    }
+
     
     /**
      * Correlation ID filter bean for request tracking.
@@ -62,7 +57,7 @@ public class LoggingConfiguration {
     public void logConfiguration() {
         boolean isProduction = environment.matchesProfiles("prod", "production");
         String[] activeProfiles = environment.getActiveProfiles();
-        LoggingProperties props = loggingProperties();
+        LoggingProperties props = loggingProperties;
         
         if (activeProfiles.length == 0) {
             logger.info("Logging configuration initialized with default profile (structured text format)");
@@ -89,6 +84,8 @@ public class LoggingConfiguration {
     /**
      * Configuration properties for logging behavior.
      */
+    @Component
+    @ConfigurationProperties(prefix = "app.logging")
     @Data
     public static class LoggingProperties {
         

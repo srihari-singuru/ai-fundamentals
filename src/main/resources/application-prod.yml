@@ -16,6 +16,18 @@ spring:
     show-sql: false
     hibernate:
       ddl-auto: validate
+  jmx:
+    enabled: ${JMX_ENABLED:true}
+  task:
+    execution:
+      pool:
+        core-size: ${TASK_POOL_CORE_SIZE:8}
+        max-size: ${TASK_POOL_MAX_SIZE:32}
+        queue-capacity: ${TASK_POOL_QUEUE_CAPACITY:1000}
+        keep-alive: ${TASK_POOL_KEEP_ALIVE:60s}
+    scheduling:
+      pool:
+        size: ${SCHEDULING_POOL_SIZE:4}
 
 server:
   shutdown: graceful
@@ -33,13 +45,13 @@ server:
 # Production logging configuration
 logging:
   level:
-    com.srihari.ai: ${LOG_LEVEL:INFO}
-    org.springframework.ai: WARN
-    reactor.netty: WARN
-    org.springframework.web: WARN
-    org.springframework.security: WARN
-    org.springframework.boot: WARN
-    org.hibernate: WARN
+    '[com.srihari.ai]': ${LOG_LEVEL:INFO}
+    '[org.springframework.ai]': WARN
+    '[reactor.netty]': WARN
+    '[org.springframework.web]': WARN
+    '[org.springframework.security]': WARN
+    '[org.springframework.boot]': WARN
+    '[org.hibernate]': WARN
   config: classpath:logback-spring.xml
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{correlationId:-}] %logger{36} - %msg%n"
@@ -203,11 +215,11 @@ management:
       show-components: when-authorized
       roles: ADMIN
     metrics:
-      enabled: true
+      access: UNRESTRICTED
     prometheus:
-      enabled: true
+      access: UNRESTRICTED
     info:
-      enabled: true
+      access: UNRESTRICTED
   health:
     circuitbreakers:
       enabled: true
@@ -227,29 +239,29 @@ management:
   metrics:
     distribution:
       percentiles-histogram:
-        "[http.server.requests]": true
-        "[chat.api.duration]": true
-        "[openai.api.duration]": true
-        "[api.operation.duration]": true
-        "[conversation.duration]": true
-        "[ai.model.latency]": true
-        "[cache.gets]": true
-        "[cache.puts]": true
-        "[connection.pool.acquisition.time]": true
+        '[http.server.requests]': true
+        '[chat.api.duration]': true
+        '[openai.api.duration]': true
+        '[api.operation.duration]': true
+        '[conversation.duration]': true
+        '[ai.model.latency]': true
+        '[cache.gets]': true
+        '[cache.puts]': true
+        '[connection.pool.acquisition.time]': true
       percentiles:
-        "[http.server.requests]": 0.5, 0.95, 0.99
-        "[chat.api.duration]": 0.5, 0.95, 0.99
-        "[openai.api.duration]": 0.5, 0.95, 0.99
-        "[api.operation.duration]": 0.5, 0.95, 0.99
-        "[conversation.duration]": 0.5, 0.95, 0.99
-        "[ai.model.latency]": 0.5, 0.95, 0.99
-      sla:
-        "[http.server.requests]": 100ms, 500ms, 1s, 2s, 5s
-        "[chat.api.duration]": 1s, 5s, 10s, 30s
-        "[openai.api.duration]": 1s, 5s, 10s, 30s
-        "[api.operation.duration]": 500ms, 1s, 5s, 10s
-        "[conversation.duration]": 1m, 5m, 15m, 30m
-        "[ai.model.latency]": 500ms, 1s, 5s, 10s
+        '[http.server.requests]': 0.5, 0.95, 0.99
+        '[chat.api.duration]': 0.5, 0.95, 0.99
+        '[openai.api.duration]': 0.5, 0.95, 0.99
+        '[api.operation.duration]': 0.5, 0.95, 0.99
+        '[conversation.duration]': 0.5, 0.95, 0.99
+        '[ai.model.latency]': 0.5, 0.95, 0.99
+      slo:
+        '[http.server.requests]': 100ms, 500ms, 1s, 2s, 5s
+        '[chat.api.duration]': 1s, 5s, 10s, 30s
+        '[openai.api.duration]': 1s, 5s, 10s, 30s
+        '[api.operation.duration]': 500ms, 1s, 5s, 10s
+        '[conversation.duration]': 1m, 5m, 15m, 30m
+        '[ai.model.latency]': 500ms, 1s, 5s, 10s
     tags:
       application: ${spring.application.name}
       environment: ${ENVIRONMENT:production}
@@ -258,41 +270,20 @@ management:
       service: ai-fundamentals
       datacenter: ${DATACENTER:unknown}
       region: ${AWS_REGION:unknown}
-    web:
-      server:
-        request:
-          autotime:
-            enabled: true
-            percentiles: 0.5, 0.95, 0.99
-            percentiles-histogram: true
-    export:
-      prometheus:
-        enabled: true
-        step: ${METRICS_STEP:30s}
-        descriptions: true
+
+
   tracing:
     enabled: ${TRACING_ENABLED:false}
     sampling:
       probability: ${TRACING_SAMPLING_RATE:0.1}
-    zipkin:
-      endpoint: ${ZIPKIN_ENDPOINT:http://zipkin:9411/api/v2/spans}
     baggage:
       correlation:
         enabled: true
         fields: correlationId
       remote-fields: correlationId
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://zipkin:9411/api/v2/spans}
 
 # JVM and performance tuning for production
-spring:
-  jmx:
-    enabled: ${JMX_ENABLED:true}
-  task:
-    execution:
-      pool:
-        core-size: ${TASK_POOL_CORE_SIZE:8}
-        max-size: ${TASK_POOL_MAX_SIZE:32}
-        queue-capacity: ${TASK_POOL_QUEUE_CAPACITY:1000}
-        keep-alive: ${TASK_POOL_KEEP_ALIVE:60s}
-    scheduling:
-      pool:
-        size: ${SCHEDULING_POOL_SIZE:4}
+# (Merged with main spring configuration above)

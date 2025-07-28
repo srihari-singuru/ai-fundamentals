@@ -51,33 +51,40 @@ public class OpenAiChatClient {
         TraceContext span = tracingService.startOpenAiSpan("stream", "gpt-4.1-nano");
         tracingService.tagSpanMessage(span, "user", message.length());
         
-        return chatClient.prompt(new Prompt(new UserMessage(message)))
-                .stream()
-                .content()
-                .doOnNext(token -> {
-                    // Record token usage (approximate - each token is roughly 1 unit)
-                    customMetrics.recordTokenUsage("gpt-4.1-nano", "stream", 1);
-                    tracingService.tagSpanTokenUsage(span, 1);
-                })
-                .doOnComplete(() -> {
-                    long duration = System.currentTimeMillis() - startTime;
-                    customMetrics.recordOpenAiDuration(sample, "gpt-4.1-nano", "stream");
-                    customMetrics.recordModelLatency("gpt-4.1-nano", "stream", duration);
-                    customMetrics.incrementMessageCount("api", "assistant");
-                    
-                    // Complete tracing span
-                    tracingService.tagSpanSuccess(span, duration);
-                    tracingService.endSpan(span);
-                })
-                .doOnError(error -> {
-                    long duration = System.currentTimeMillis() - startTime;
-                    customMetrics.incrementAiErrors("gpt-4.1-nano", "openai_error", error.getClass().getSimpleName());
-                    customMetrics.recordOpenAiDuration(sample, "gpt-4.1-nano", "stream");
-                    
-                    // Complete tracing span with error
-                    tracingService.tagSpanError(span, error, duration);
-                    tracingService.endSpan(span);
-                });
+        return Flux.defer(() -> {
+            try {
+                return chatClient.prompt(new Prompt(new UserMessage(message)))
+                        .stream()
+                        .content()
+                        .doOnNext(token -> {
+                            // Record token usage (approximate - each token is roughly 1 unit)
+                            customMetrics.recordTokenUsage("gpt-4.1-nano", "stream", 1);
+                            tracingService.tagSpanTokenUsage(span, 1);
+                        })
+                        .doOnComplete(() -> {
+                            long duration = System.currentTimeMillis() - startTime;
+                            customMetrics.recordOpenAiDuration(sample, "gpt-4.1-nano", "stream");
+                            customMetrics.recordModelLatency("gpt-4.1-nano", "stream", duration);
+                            customMetrics.incrementMessageCount("api", "assistant");
+                            
+                            // Complete tracing span
+                            tracingService.tagSpanSuccess(span, duration);
+                            tracingService.endSpan(span);
+                        })
+                        .doOnError(error -> {
+                            long duration = System.currentTimeMillis() - startTime;
+                            customMetrics.incrementAiErrors("gpt-4.1-nano", "openai_error", error.getClass().getSimpleName());
+                            customMetrics.recordOpenAiDuration(sample, "gpt-4.1-nano", "stream");
+                            
+                            // Complete tracing span with error
+                            tracingService.tagSpanError(span, error, duration);
+                            tracingService.endSpan(span);
+                        });
+            } catch (Exception e) {
+                // This will trigger the circuit breaker fallback
+                return Flux.error(e);
+            }
+        });
     }
 
     /**
@@ -95,37 +102,44 @@ public class OpenAiChatClient {
         TraceContext span = tracingService.startOpenAiSpan("complete", "gpt-4.1-nano");
         tracingService.tagSpanMessage(span, "conversation", messages.size());
         
-        return chatClient.prompt(new Prompt(messages))
-                .stream()
-                .content()
-                .collectList()
-                .map(tokens -> {
-                    String response = String.join("", tokens);
-                    // Record token usage (approximate - response length / 4 for token count)
-                    int estimatedTokens = Math.max(1, response.length() / 4);
-                    customMetrics.recordTokenUsage("gpt-4.1-nano", "complete", estimatedTokens);
-                    tracingService.tagSpanTokenUsage(span, estimatedTokens);
-                    return response;
-                })
-                .doOnSuccess(response -> {
-                    long duration = System.currentTimeMillis() - startTime;
-                    customMetrics.recordOpenAiDuration(sample, "gpt-4.1-nano", "complete");
-                    customMetrics.recordModelLatency("gpt-4.1-nano", "complete", duration);
-                    customMetrics.incrementMessageCount("web", "assistant");
-                    
-                    // Complete tracing span
-                    tracingService.tagSpanSuccess(span, duration);
-                    tracingService.endSpan(span);
-                })
-                .doOnError(error -> {
-                    long duration = System.currentTimeMillis() - startTime;
-                    customMetrics.incrementAiErrors("gpt-4.1-nano", "openai_error", error.getClass().getSimpleName());
-                    customMetrics.recordOpenAiDuration(sample, "gpt-4.1-nano", "complete");
-                    
-                    // Complete tracing span with error
-                    tracingService.tagSpanError(span, error, duration);
-                    tracingService.endSpan(span);
-                });
+        return Mono.defer(() -> {
+            try {
+                return chatClient.prompt(new Prompt(messages))
+                        .stream()
+                        .content()
+                        .collectList()
+                        .map(tokens -> {
+                            String response = String.join("", tokens);
+                            // Record token usage (approximate - response length / 4 for token count)
+                            int estimatedTokens = Math.max(1, response.length() / 4);
+                            customMetrics.recordTokenUsage("gpt-4.1-nano", "complete", estimatedTokens);
+                            tracingService.tagSpanTokenUsage(span, estimatedTokens);
+                            return response;
+                        })
+                        .doOnSuccess(response -> {
+                            long duration = System.currentTimeMillis() - startTime;
+                            customMetrics.recordOpenAiDuration(sample, "gpt-4.1-nano", "complete");
+                            customMetrics.recordModelLatency("gpt-4.1-nano", "complete", duration);
+                            customMetrics.incrementMessageCount("web", "assistant");
+                            
+                            // Complete tracing span
+                            tracingService.tagSpanSuccess(span, duration);
+                            tracingService.endSpan(span);
+                        })
+                        .doOnError(error -> {
+                            long duration = System.currentTimeMillis() - startTime;
+                            customMetrics.incrementAiErrors("gpt-4.1-nano", "openai_error", error.getClass().getSimpleName());
+                            customMetrics.recordOpenAiDuration(sample, "gpt-4.1-nano", "complete");
+                            
+                            // Complete tracing span with error
+                            tracingService.tagSpanError(span, error, duration);
+                            tracingService.endSpan(span);
+                        });
+            } catch (Exception e) {
+                // This will trigger the circuit breaker fallback
+                return Mono.error(e);
+            }
+        });
     }
 
     // Fallback methods for circuit breaker

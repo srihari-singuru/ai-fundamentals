@@ -94,10 +94,7 @@ public class WebClientConfiguration {
         public void setBulkhead(Bulkhead bulkhead) { this.bulkhead = bulkhead; }
     }
 
-    @Bean
-    public WebClientProperties webClientProperties() {
-        return new WebClientProperties();
-    }
+
 
     @Bean
     public BulkheadRegistry bulkheadRegistry() {

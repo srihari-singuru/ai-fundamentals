@@ -82,10 +82,7 @@ public class CachingConfiguration {
         public void setModel(Model model) { this.model = model; }
     }
 
-    @Bean
-    public CacheProperties cacheProperties() {
-        return new CacheProperties();
-    }
+
 
     /**
      * Cache manager with multiple cache configurations.
